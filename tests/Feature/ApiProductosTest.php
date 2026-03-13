@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Mail\ProductCreatedMail;
+use App\Mail\VerificationCodeMail;
 use App\Models\Producto;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -24,9 +28,11 @@ class ApiProductosTest extends TestCase
         $this->createSchema();
     }
 
-    public function test_login_returns_token_and_user_data()
+    public function test_login_sends_a_six_digit_verification_code_by_email()
     {
+        Mail::fake();
         $user = $this->createUser(User::ROLE_ADMIN, 'admin@test.com');
+        $sentCode = null;
 
         $response = $this->postJson('/api/login', [
             'email' => $user->email,
@@ -34,11 +40,119 @@ class ApiProductosTest extends TestCase
         ]);
 
         $response->assertOk()
+            ->assertJson([
+                'message' => 'Codigo de verificacion enviado al correo',
+            ])
+            ->assertJsonMissing(['token']);
+
+        Mail::assertSent(VerificationCodeMail::class, function (VerificationCodeMail $mail) use ($user, &$sentCode) {
+            $sentCode = $mail->code;
+
+            return $mail->hasTo($user->email);
+        });
+
+        $user->refresh();
+
+        $this->assertNotNull($sentCode);
+        $this->assertMatchesRegularExpression('/^\d{6}$/', $sentCode);
+        $this->assertNotNull($user->verification_code);
+        $this->assertTrue(Hash::check($sentCode, $user->verification_code));
+        $this->assertNotNull($user->verification_code_expires_at);
+        $this->assertTrue($user->verification_code_expires_at->greaterThan(now()));
+    }
+
+    public function test_login_with_invalid_credentials_does_not_send_a_code()
+    {
+        Mail::fake();
+        $user = $this->createUser(User::ROLE_ADMIN, 'admin-invalid@test.com');
+
+        $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'incorrecta',
+        ])->assertStatus(401)
+            ->assertJson([
+                'message' => 'Credenciales invalidas',
+            ]);
+
+        $user->refresh();
+
+        $this->assertNull($user->verification_code);
+        $this->assertNull($user->verification_code_expires_at);
+        Mail::assertNothingSent();
+    }
+
+    public function test_verify_code_returns_token_and_invalidates_the_code()
+    {
+        Mail::fake();
+        $user = $this->createUser(User::ROLE_ADMIN, 'verify@test.com');
+        $sentCode = null;
+
+        $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertOk();
+
+        Mail::assertSent(VerificationCodeMail::class, function (VerificationCodeMail $mail) use (&$sentCode) {
+            $sentCode = $mail->code;
+
+            return true;
+        });
+
+        $response = $this->postJson('/api/verify-code', [
+            'email' => $user->email,
+            'code' => $sentCode,
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'message' => 'Codigo verificado correctamente',
+                'user' => [
+                    'email' => $user->email,
+                    'role' => User::ROLE_ADMIN,
+                ],
+            ])
             ->assertJsonStructure([
                 'message',
                 'token',
                 'user' => ['id', 'name', 'email', 'role'],
             ]);
+
+        $user->refresh();
+
+        $this->assertNull($user->verification_code);
+        $this->assertNull($user->verification_code_expires_at);
+
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'Authorization' => 'Bearer ' . $response->json('token'),
+        ])->getJson('/api/me')
+            ->assertOk()
+            ->assertJson([
+                'email' => $user->email,
+            ]);
+    }
+
+    public function test_verify_code_rejects_expired_codes()
+    {
+        $user = $this->createUser(User::ROLE_ADMIN, 'expired@test.com');
+
+        $user->forceFill([
+            'verification_code' => Hash::make('123456'),
+            'verification_code_expires_at' => Carbon::now()->subMinute(),
+        ])->save();
+
+        $this->postJson('/api/verify-code', [
+            'email' => $user->email,
+            'code' => '123456',
+        ])->assertStatus(401)
+            ->assertJson([
+                'message' => 'Codigo de verificacion invalido o expirado',
+            ]);
+
+        $user->refresh();
+
+        $this->assertNull($user->verification_code);
+        $this->assertNull($user->verification_code_expires_at);
     }
 
     public function test_me_returns_authenticated_user()
@@ -94,6 +208,7 @@ class ApiProductosTest extends TestCase
 
     public function test_operador_can_store_and_update_but_cannot_destroy()
     {
+        Mail::fake();
         $operador = $this->createUser(User::ROLE_OPERADOR, 'operador@test.com');
         $headers = $this->authHeaders($operador);
 
@@ -107,6 +222,12 @@ class ApiProductosTest extends TestCase
         $storeResponse->assertCreated()
             ->assertJsonPath('data.nombre', 'Te')
             ->assertJsonPath('data.stock', 8);
+
+        Mail::assertSent(ProductCreatedMail::class, function (ProductCreatedMail $mail) use ($operador) {
+            return $mail->hasTo($operador->email)
+                && $mail->producto->nombre === 'Te'
+                && $mail->producto->stock === 8;
+        });
 
         $productoId = $storeResponse->json('data.id');
 
@@ -196,7 +317,7 @@ class ApiProductosTest extends TestCase
             ->assertStatus(401);
     }
 
-    public function test_refresh_returns_a_new_token()
+    public function test_refresh_token_returns_a_new_token()
     {
         $user = $this->createUser(User::ROLE_ADMIN, 'refresh@test.com');
         $token = JWTAuth::fromUser($user);
@@ -204,7 +325,7 @@ class ApiProductosTest extends TestCase
         $response = $this->withHeaders([
             'Accept' => 'application/json',
             'Authorization' => 'Bearer ' . $token,
-        ])->postJson('/api/refresh');
+        ])->postJson('/api/refresh-token');
 
         $newToken = $response->json('token');
 
@@ -228,6 +349,11 @@ class ApiProductosTest extends TestCase
             ->assertJson([
                 'email' => $user->email,
             ]);
+    }
+
+    public function test_jwt_ttl_is_configured_to_five_minutes()
+    {
+        $this->assertSame(5, config('jwt.ttl'));
     }
 
     private function createUser(string $role, string $email): User
@@ -258,6 +384,8 @@ class ApiProductosTest extends TestCase
             $table->string('name');
             $table->string('email')->unique();
             $table->string('role', 20)->default(User::ROLE_USUARIO);
+            $table->string('verification_code')->nullable();
+            $table->timestamp('verification_code_expires_at')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken()->nullable();

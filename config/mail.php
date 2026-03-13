@@ -115,4 +115,6 @@ return [
         ],
     ],
 
+    'product_notification_to' => env('PRODUCT_NOTIFICATION_TO'),
+
 ];

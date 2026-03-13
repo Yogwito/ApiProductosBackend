@@ -112,4 +112,6 @@ return [
 
     'password_timeout' => 10800,
 
+    'verification_code_ttl' => env('AUTH_VERIFICATION_CODE_TTL', 10),
+
 ];

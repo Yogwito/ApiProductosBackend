@@ -2,14 +2,26 @@
 
 Base URL: `http://localhost:8000/api`
 
+## Configuracion previa de correo
+
+Variables relevantes en `.env`:
+
+- `MAIL_MAILER`
+- `MAIL_HOST`
+- `MAIL_PORT`
+- `MAIL_USERNAME`
+- `MAIL_PASSWORD`
+- `MAIL_ENCRYPTION`
+- `MAIL_FROM_ADDRESS`
+- `MAIL_FROM_NAME`
+- `PRODUCT_NOTIFICATION_TO` opcional. Si esta vacia, el correo de nuevo producto se envia al usuario autenticado que lo crea.
+- `JWT_TTL=5`
+- `AUTH_VERIFICATION_CODE_TTL=10`
+
 ## Auth
 
 ### POST `/login`
-- Auth requerida: no
-- Roles permitidos: publico
-- Headers:
-  - `Accept: application/json`
-  - `Content-Type: application/json`
+- Autenticacion requerida: no
 - Body ejemplo:
 
 ```json
@@ -23,7 +35,34 @@ Base URL: `http://localhost:8000/api`
 
 ```json
 {
-  "message": "Login Correcto",
+  "message": "Codigo de verificacion enviado al correo"
+}
+```
+
+- Respuesta de error:
+
+```json
+{
+  "message": "Credenciales invalidas"
+}
+```
+
+### POST `/verify-code`
+- Autenticacion requerida: no
+- Body ejemplo:
+
+```json
+{
+  "email": "admin@api.com",
+  "code": "123456"
+}
+```
+
+- Respuesta exitosa:
+
+```json
+{
+  "message": "Codigo verificado correctamente",
   "token": "jwt_token",
   "user": {
     "id": 1,
@@ -38,16 +77,13 @@ Base URL: `http://localhost:8000/api`
 
 ```json
 {
-  "message": "Credenciales invalidas"
+  "message": "Codigo de verificacion invalido o expirado"
 }
 ```
 
 ### GET `/me`
-- Auth requerida: si, `Bearer token`
+- Autenticacion requerida: si, `Bearer token`
 - Roles permitidos: `admin`, `usuario`, `operador`
-- Headers:
-  - `Accept: application/json`
-  - `Authorization: Bearer {token}`
 - Body ejemplo: no aplica
 - Respuesta exitosa:
 
@@ -69,11 +105,8 @@ Base URL: `http://localhost:8000/api`
 ```
 
 ### POST `/logout`
-- Auth requerida: si, `Bearer token`
+- Autenticacion requerida: si, `Bearer token`
 - Roles permitidos: `admin`, `usuario`, `operador`
-- Headers:
-  - `Accept: application/json`
-  - `Authorization: Bearer {token}`
 - Body ejemplo: no aplica
 - Respuesta exitosa:
 
@@ -91,12 +124,9 @@ Base URL: `http://localhost:8000/api`
 }
 ```
 
-### POST `/refresh`
-- Auth requerida: si, `Bearer token`
+### POST `/refresh-token`
+- Autenticacion requerida: si, `Bearer token`
 - Roles permitidos: `admin`, `usuario`, `operador`
-- Headers:
-  - `Accept: application/json`
-  - `Authorization: Bearer {token}`
 - Body ejemplo: no aplica
 - Respuesta exitosa:
 
@@ -121,14 +151,16 @@ Base URL: `http://localhost:8000/api`
 }
 ```
 
+### POST `/refresh`
+- Autenticacion requerida: si, `Bearer token`
+- Roles permitidos: `admin`, `usuario`, `operador`
+- Nota: se mantiene por compatibilidad, pero la ruta prioritaria es `/refresh-token`.
+
 ## Productos
 
 ### GET `/productos`
-- Auth requerida: si, `Bearer token`
+- Autenticacion requerida: si, `Bearer token`
 - Roles permitidos: `admin`, `usuario`, `operador`
-- Headers:
-  - `Accept: application/json`
-  - `Authorization: Bearer {token}`
 - Body ejemplo: no aplica
 - Respuesta exitosa:
 
@@ -155,43 +187,9 @@ Base URL: `http://localhost:8000/api`
 }
 ```
 
-### GET `/productos/{id}`
-- Auth requerida: si, `Bearer token`
-- Roles permitidos: `admin`, `usuario`, `operador`
-- Headers:
-  - `Accept: application/json`
-  - `Authorization: Bearer {token}`
-- Body ejemplo: no aplica
-- Respuesta exitosa:
-
-```json
-{
-  "message": "Producto encontrado con id (1)",
-  "data": {
-    "id": 1,
-    "nombre": "Cafe",
-    "precio": "12.50",
-    "stock": 10,
-    "descripcion": "Cafe premium"
-  }
-}
-```
-
-- Respuesta de error:
-
-```json
-{
-  "message": "No se encontro el producto solicitado con id (999)"
-}
-```
-
 ### POST `/productos`
-- Auth requerida: si, `Bearer token`
+- Autenticacion requerida: si, `Bearer token`
 - Roles permitidos: `admin`, `operador`
-- Headers:
-  - `Accept: application/json`
-  - `Content-Type: application/json`
-  - `Authorization: Bearer {token}`
 - Body ejemplo:
 
 ```json
@@ -222,22 +220,40 @@ Base URL: `http://localhost:8000/api`
 
 ```json
 {
-  "message": "The given data was invalid.",
-  "errors": {
-    "nombre": ["The nombre field is required."],
-    "precio": ["The precio must be at least 0."],
-    "stock": ["The stock field is required."]
+  "message": "No se pudo crear el producto o enviar la notificacion"
+}
+```
+
+### GET `/productos/{id}`
+- Autenticacion requerida: si, `Bearer token`
+- Roles permitidos: `admin`, `usuario`, `operador`
+- Body ejemplo: no aplica
+- Respuesta exitosa:
+
+```json
+{
+  "message": "Producto encontrado con id (1)",
+  "data": {
+    "id": 1,
+    "nombre": "Cafe",
+    "precio": "12.50",
+    "stock": 10,
+    "descripcion": "Cafe premium"
   }
 }
 ```
 
+- Respuesta de error:
+
+```json
+{
+  "message": "No se encontro el producto solicitado con id (999)"
+}
+```
+
 ### PUT `/productos/{id}`
-- Auth requerida: si, `Bearer token`
+- Autenticacion requerida: si, `Bearer token`
 - Roles permitidos: `admin`, `operador`
-- Headers:
-  - `Accept: application/json`
-  - `Content-Type: application/json`
-  - `Authorization: Bearer {token}`
 - Body ejemplo:
 
 ```json
@@ -275,11 +291,8 @@ Base URL: `http://localhost:8000/api`
 ```
 
 ### DELETE `/productos/{id}`
-- Auth requerida: si, `Bearer token`
+- Autenticacion requerida: si, `Bearer token`
 - Roles permitidos: `admin`
-- Headers:
-  - `Accept: application/json`
-  - `Authorization: Bearer {token}`
 - Body ejemplo: no aplica
 - Respuesta exitosa:
 

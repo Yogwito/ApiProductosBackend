@@ -26,6 +26,8 @@ class User extends Authenticatable implements JWTSubject
         'email',
         'password',
         'role',
+        'verification_code',
+        'verification_code_expires_at',
     ];
 
     /**
@@ -36,6 +38,8 @@ class User extends Authenticatable implements JWTSubject
     protected $hidden = [
         'password',
         'remember_token',
+        'verification_code',
+        'verification_code_expires_at',
     ];
 
     /**
@@ -45,6 +49,7 @@ class User extends Authenticatable implements JWTSubject
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'verification_code_expires_at' => 'datetime',
     ];
 
     public function getJWTIdentifier(){

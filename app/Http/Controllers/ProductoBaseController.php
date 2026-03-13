@@ -2,22 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Routing\Controller as BaseController;
-use Illuminate\Http\Request;
+use App\Mail\ProductCreatedMail;
 use App\Models\Producto;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Controller as BaseController;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class ProductoBaseController extends BaseController
 {
-    public function index(){
-
+    public function index()
+    {
         $productos = Producto::all();
 
-         return response()->json([
-            'message'=> 'Listado de todos los productos',
-            'data'=> $productos,]);
+        return response()->json([
+            'message' => 'Listado de todos los productos',
+            'data' => $productos,
+        ]);
     }
 
-    public function store(Request $request){
+    public function store(Request $request)
+    {
         $validated = $request->validate([
             'nombre' => 'required|string|max:100',
             'precio' => 'required|numeric|min:0',
@@ -25,34 +31,54 @@ class ProductoBaseController extends BaseController
             'descripcion' => 'nullable|string',
         ]);
 
-        $productos = Producto::create($validated);
+        try {
+            DB::beginTransaction();
+
+            $producto = Producto::create($validated);
+            $recipient = config('mail.product_notification_to') ?: $request->user()->email;
+
+            Mail::to($recipient)->send(new ProductCreatedMail($producto, $request->user()));
+
+            DB::commit();
+        } catch (Throwable $exception) {
+            DB::rollBack();
+            report($exception);
+
+            return response()->json([
+                'message' => 'No se pudo crear el producto o enviar la notificacion',
+            ], 500);
+        }
 
         return response()->json([
             'message' => 'Producto creado correctamente',
-            'data'=> $productos,], 201);
+            'data' => $producto,
+        ], 201);
     }
 
-    public function show(String $id){
-
+    public function show(string $id)
+    {
         $producto = Producto::find($id);
 
-        if(!$producto){
+        if (! $producto) {
             return response()->json([
-            'message' => "No se encontro el producto solicitado con id ($id)"], 404);
+                'message' => "No se encontro el producto solicitado con id ($id)",
+            ], 404);
         }
 
         return response()->json([
             'message' => "Producto encontrado con id ($id)",
-            'data'=> $producto]);
+            'data' => $producto,
+        ]);
     }
 
-    public function update(Request $request, String $id){
-
+    public function update(Request $request, string $id)
+    {
         $producto = Producto::find($id);
 
-         if(!$producto){
+        if (! $producto) {
             return response()->json([
-            'message' => "No se encontro el producto solicitado con id ($id)"], 404);
+                'message' => "No se encontro el producto solicitado con id ($id)",
+            ], 404);
         }
 
         $validated = $request->validate([
@@ -66,24 +92,24 @@ class ProductoBaseController extends BaseController
 
         return response()->json([
             'message' => "Producto con id ($id) actualizado correctamente",
-            'data'=> $producto]);
+            'data' => $producto,
+        ]);
     }
 
-    public function destroy(String $id){
-
+    public function destroy(string $id)
+    {
         $producto = Producto::find($id);
 
-         if(!$producto){
+        if (! $producto) {
             return response()->json([
-            'message' => "No se encontro el producto solicitado con id ($id)"], 404);
+                'message' => "No se encontro el producto solicitado con id ($id)",
+            ], 404);
         }
 
         $producto->delete();
 
         return response()->json([
-            'message' => "Producto con id ($id) ha sido eliminado"]);
+            'message' => "Producto con id ($id) ha sido eliminado",
+        ]);
     }
-
-
-
 }
