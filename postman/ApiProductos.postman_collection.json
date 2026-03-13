@@ -1,0 +1,378 @@
+{
+  "info": {
+    "_postman_id": "2f3db6ad-6df0-4b91-b499-4e5ec3db8200",
+    "name": "ApiProductos",
+    "description": "Coleccion base para probar la API REST de ApiProductos con JWT Auth.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "productoId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@api.com\",\n  \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["login"]
+            },
+            "description": "Autentica un usuario y devuelve un JWT."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Login Correcto\",\n  \"token\": \"jwt_token\",\n  \"user\": {\n    \"id\": 1,\n    \"name\": \"Administrador\",\n    \"email\": \"admin@api.com\",\n    \"role\": \"admin\"\n  }\n}"
+            },
+            {
+              "name": "401 Credenciales invalidas",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"message\": \"Credenciales invalidas\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["me"]
+            },
+            "description": "Devuelve el usuario autenticado."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"id\": 1,\n  \"name\": \"Administrador\",\n  \"email\": \"admin@api.com\",\n  \"role\": \"admin\"\n}"
+            },
+            {
+              "name": "401 Sin token",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"message\": \"Unauthenticated.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["logout"]
+            },
+            "description": "Invalida el token JWT actual."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Logout correcto\"\n}"
+            },
+            {
+              "name": "500 Error",
+              "status": "Internal Server Error",
+              "code": 500,
+              "body": "{\n  \"message\": \"No se pudo cerrar la sesion\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Refresh",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["refresh"]
+            },
+            "description": "Renueva el token JWT y retorna uno nuevo."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Token renovado correctamente\",\n  \"token\": \"nuevo_jwt_token\",\n  \"user\": {\n    \"id\": 1,\n    \"name\": \"Administrador\",\n    \"email\": \"admin@api.com\",\n    \"role\": \"admin\"\n  }\n}"
+            },
+            {
+              "name": "401 Error",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"message\": \"No se pudo renovar el token\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Productos",
+      "item": [
+        {
+          "name": "Index",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/productos",
+              "host": ["{{baseUrl}}"],
+              "path": ["productos"]
+            },
+            "description": "Lista todos los productos. Roles: admin, usuario, operador."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Listado de todos los productos\",\n  \"data\": []\n}"
+            },
+            {
+              "name": "401 Sin token",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"message\": \"Unauthenticated.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Show",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/productos/{{productoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["productos", "{{productoId}}"]
+            },
+            "description": "Consulta un producto por id. Roles: admin, usuario, operador."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Producto encontrado con id (1)\",\n  \"data\": {\n    \"id\": 1,\n    \"nombre\": \"Cafe\",\n    \"precio\": \"12.50\",\n    \"stock\": 10,\n    \"descripcion\": \"Cafe premium\"\n  }\n}"
+            },
+            {
+              "name": "404 No existe",
+              "status": "Not Found",
+              "code": 404,
+              "body": "{\n  \"message\": \"No se encontro el producto solicitado con id (999)\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Store",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Arroz\",\n  \"precio\": 5.75,\n  \"stock\": 40,\n  \"descripcion\": \"Arroz blanco x 1kg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/productos",
+              "host": ["{{baseUrl}}"],
+              "path": ["productos"]
+            },
+            "description": "Crea un producto. Roles: admin, operador."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"message\": \"Producto creado correctamente\",\n  \"data\": {\n    \"id\": 1,\n    \"nombre\": \"Arroz\",\n    \"precio\": \"5.75\",\n    \"stock\": 40,\n    \"descripcion\": \"Arroz blanco x 1kg\"\n  }\n}"
+            },
+            {
+              "name": "422 Validation",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "body": "{\n  \"message\": \"The given data was invalid.\",\n  \"errors\": {\n    \"nombre\": [\"The nombre field is required.\"],\n    \"precio\": [\"The precio must be at least 0.\"],\n    \"stock\": [\"The stock field is required.\"]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"precio\": 6.10,\n  \"stock\": 35,\n  \"descripcion\": \"Arroz actualizado\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/productos/{{productoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["productos", "{{productoId}}"]
+            },
+            "description": "Actualiza un producto. Roles: admin, operador."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Producto con id (1) actualizado correctamente\",\n  \"data\": {\n    \"id\": 1,\n    \"nombre\": \"Arroz\",\n    \"precio\": \"6.10\",\n    \"stock\": 35,\n    \"descripcion\": \"Arroz actualizado\"\n  }\n}"
+            },
+            {
+              "name": "422 Validation",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "body": "{\n  \"message\": \"The given data was invalid.\",\n  \"errors\": {\n    \"precio\": [\"The precio must be at least 0.\"]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Destroy",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/productos/{{productoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["productos", "{{productoId}}"]
+            },
+            "description": "Elimina un producto. Rol: admin."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Producto con id (1) ha sido eliminado\"\n}"
+            },
+            {
+              "name": "403 Forbidden",
+              "status": "Forbidden",
+              "code": 403,
+              "body": "{\n  \"message\": \"No tienes permiso para esta accion\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

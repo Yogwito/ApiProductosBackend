@@ -1,0 +1,265 @@
+================================================================================
+                     TALLER PRÁCTICO - DESARROLLO DE APIs REST
+                          Tecnología: Laravel + JWT Auth
+================================================================================
+
+ASIGNATURA : Desarrollo de Aplicaciones Web / Backend
+MODALIDAD  : Individual o parejas
+ENTREGA    : Según indicación del docente
+
+--------------------------------------------------------------------------------
+CONTEXTO
+--------------------------------------------------------------------------------
+
+La empresa ApiProductos es una compañía distribuidora que actualmente cuenta con
+una API REST básica desarrollada en Laravel. Dicha API permite autenticarse con
+JWT y gestionar un catálogo de productos con control de roles (admin / usuario).
+
+Sin embargo, tras una reunión con el equipo directivo, la empresa ApiProductos
+ahora requiere ampliar y fortalecer su plataforma tecnológica para responder a
+las nuevas necesidades del negocio. Como desarrollador backend contratado, usted
+deberá continuar el desarrollo sobre el proyecto base entregado por el docente e
+implementar los requerimientos descritos a continuación.
+
+--------------------------------------------------------------------------------
+ESTADO ACTUAL DEL PROYECTO BASE
+--------------------------------------------------------------------------------
+
+El proyecto ya cuenta con:
+  - Autenticación con JWT (login, endpoint /me)
+  - Modelo User con roles (admin / usuario) e implementación de JWTSubject
+  - Modelo Producto con campos: nombre, precio
+  - CRUD completo en ProductoBaseController (métodos implementados)
+  - Middleware CheckRole para protección por roles
+  - Rutas: POST /login, GET /me, GET /productos, POST /productos
+  - Seeder con dos usuarios de prueba: admin@api.com y usuario@api.com
+  - Base de datos configurada y migraciones ejecutadas
+
+--------------------------------------------------------------------------------
+REQUERIMIENTOS DEL TALLER
+--------------------------------------------------------------------------------
+
+PUNTO 1 — LIMPIEZA Y CORRECCIÓN DE CÓDIGO BASE  (15 puntos)
+------------------------------------------------------------
+El equipo de calidad de ApiProductos realizó una auditoría del código y encontró
+varios problemas que deben resolverse antes de continuar el desarrollo.
+
+  a) El modelo Producto (app/Models/Producto.php) contiene en las primeras líneas
+     una serie de imports que pertenecen al modelo User y no tienen ninguna
+     relación con un producto:
+       - Illuminate\Contracts\Auth\MustVerifyEmail
+       - Illuminate\Foundation\Auth\User as Authenticatable
+       - Illuminate\Notifications\Notifiable
+       - Laravel\Sanctum\HasApiTokens
+     Elimine todos estos imports innecesarios.
+
+  b) El modelo User (app/Models/User.php) importa la interfaz MustVerifyEmail
+     pero la clase nunca la implementa. Elimine ese import.
+
+  c) El AuthController importa la facade Auth de Laravel pero no la usa en ningún
+     método. Elimine ese import.
+
+  d) El ProductoBaseController importa tres traits (AuthorizesRequests,
+     DispatchesJobs, ValidatesRequests) que no están siendo aplicados en la clase.
+     Elimine esos imports.
+
+  e) Existe una clase llamada ProductoController (app/Http/Controllers/
+     ProductoController.php) con todos sus métodos vacíos (solo retornan strings
+     de prueba). Este controlador no está en uso y genera confusión. Además,
+     el archivo api.php lo importa sin usarlo en ninguna ruta. Elimine el archivo
+     ProductoController.php y su import en api.php.
+
+  f) La migración 2026_03_06_132701_and_role_to_user_table.php tiene un error
+     tipográfico en el nombre de la clase: está llamada "AndRoleToUserTable"
+     cuando debería ser "AddRoleToUserTable". Corrija el nombre de la clase.
+
+  g) En la migración 2026_02_27_142911_create_productos_table.php, el método
+     para crear la columna nombre está escrito como $table->String('nombre')
+     con S mayúscula. En Laravel/PHP los métodos de Blueprint van en minúscula.
+     Corrija a $table->string('nombre').
+
+
+PUNTO 2 — COMPLETAR LAS RUTAS DE PRODUCTOS  (15 puntos)
+--------------------------------------------------------
+ApiProductos ahora requiere que el CRUD de productos sea completamente accesible
+desde la API. Actualmente solo existen las rutas index y store.
+
+  a) Registre en api.php las rutas faltantes dentro del grupo autenticado:
+       - GET    /productos/{id}   ->  show     (acceso: admin y usuario)
+       - PUT    /productos/{id}   ->  update   (acceso: solo admin)
+       - DELETE /productos/{id}   ->  destroy  (acceso: solo admin)
+
+  b) Aplique el middleware 'role' correspondiente a cada ruta nueva, siguiendo
+     el mismo patrón que ya existe en las rutas actuales.
+
+  c) Pruebe cada ruta desde Postman o Insomnia documentando:
+       - La petición (método, URL, headers, body)
+       - Respuesta exitosa
+       - Respuesta cuando el producto no existe (404)
+       - Respuesta cuando el usuario no tiene el rol adecuado (403)
+
+
+PUNTO 3 — VALIDACIÓN DE DATOS  (15 puntos)
+-------------------------------------------
+El equipo de soporte ha recibido reportes de productos creados con precios
+negativos, nombres en blanco y datos incoherentes. ApiProductos ahora requiere
+que toda entrada de datos sea validada antes de persistirse en la base de datos.
+
+  a) En el método store() reemplace los valores por defecto silenciosos por
+     validación explícita con las siguientes reglas:
+       - nombre : requerido, texto, máximo 100 caracteres
+       - precio : requerido, numérico, mínimo 0
+
+  b) En el método update() agregue validación con las siguientes reglas:
+       - nombre : opcional, texto, máximo 100 caracteres
+       - precio : opcional, numérico, mínimo 0
+
+  c) Las respuestas de error de validación deben retornar código HTTP 422 con
+     el detalle de los campos inválidos en formato JSON.
+
+  Nota: puede usar el Validator de Laravel o la validación por medio del
+  método $request->validate([...]).
+
+
+PUNTO 4 — NUEVOS CAMPOS EN PRODUCTOS  (15 puntos)
+--------------------------------------------------
+El área de logística necesita registrar información adicional de cada producto.
+ApiProductos ahora requiere que cada producto tenga descripción y stock.
+
+  a) Cree una nueva migración que agregue los siguientes campos a la tabla
+     productos:
+       - stock       : entero sin signo, valor por defecto 0
+       - descripcion : texto largo, puede ser nulo
+
+  b) Ejecute la migración con: php artisan migrate
+
+  c) Actualice el atributo $fillable del modelo Producto incluyendo los
+     nuevos campos.
+
+  d) Actualice los métodos store() y update() para que reciban y persistan
+     los nuevos campos.
+
+  e) Actualice las reglas de validación del Punto 3 para incluir:
+       - stock       : opcional en update / requerido en store, entero, mínimo 0
+       - descripcion : opcional, texto
+
+
+PUNTO 5 — NUEVO ROL: OPERADOR  (20 puntos)
+-------------------------------------------
+El área de logística necesita un perfil que pueda gestionar el inventario de
+productos pero sin tener acceso completo de administrador. ApiProductos ahora
+requiere un tercer rol llamado "operador".
+
+  a) Agregue la constante ROLE_OPERADOR = 'operador' al modelo User.
+
+  b) En el UserSeeder agregue un tercer usuario de prueba:
+       - email    : operador@api.com
+       - password : password
+       - rol      : operador
+
+  c) Ejecute el seeder: php artisan db:seed
+
+  d) Ajuste los middlewares de las rutas de productos para que el operador
+     tenga los siguientes permisos:
+       - Consultar el listado              (index)   -> admin, usuario, operador
+       - Consultar un producto por id      (show)    -> admin, usuario, operador
+       - Crear productos                   (store)   -> admin, operador
+       - Actualizar productos              (update)  -> admin, operador
+       - Eliminar productos                (destroy) -> solo admin
+
+  e) Pruebe en Postman los tres usuarios y verifique que cada uno accede
+     únicamente a lo que le corresponde según su rol.
+
+
+PUNTO 6 — LOGOUT Y REFRESH TOKEN  (15 puntos)
+----------------------------------------------
+Actualmente la API no tiene forma de cerrar sesión ni de renovar el token.
+ApiProductos ahora requiere que los usuarios puedan invalidar su sesión y
+obtener un nuevo token sin volver a enviar sus credenciales.
+
+  a) En AuthController agregue el método logout():
+       - Debe invalidar el token JWT actual usando JWTAuth::invalidate().
+       - Debe retornar un mensaje de confirmación con código HTTP 200.
+       - Debe manejar posibles excepciones con try/catch.
+
+  b) En AuthController agregue el método refresh():
+       - Debe generar y retornar un nuevo token JWT usando JWTAuth::refresh().
+       - Útil cuando el token está próximo a expirar.
+
+  c) Registre las rutas en api.php dentro del grupo autenticado:
+       - POST /logout   -> acceso: cualquier usuario autenticado
+       - POST /refresh  -> acceso: cualquier usuario autenticado
+
+
+PUNTO 7 — DOCUMENTACIÓN Y PRUEBAS  (10 puntos)
+------------------------------------------------
+ApiProductos exige que toda API entregada cuente con documentación de sus
+endpoints para facilitar la integración con el equipo de frontend.
+
+  a) Cree una colección en Postman (o Insomnia) con TODOS los endpoints de la
+     API organizados por carpetas:
+       - Auth      : login, logout, refresh, me
+       - Productos : index, store, show, update, destroy
+
+  b) Cada request debe incluir:
+       - Descripción del endpoint
+       - Headers necesarios (Content-Type, Authorization con Bearer token)
+       - Body de ejemplo en JSON donde aplique
+       - Al menos un ejemplo de respuesta exitosa
+       - Al menos un ejemplo de respuesta de error
+
+  c) Exporte la colección y entréguela junto con el proyecto.
+
+--------------------------------------------------------------------------------
+CRITERIOS DE EVALUACIÓN
+--------------------------------------------------------------------------------
+
+  Punto 1 — Limpieza y corrección de código base    15 puntos
+  Punto 2 — Completar rutas de productos            15 puntos
+  Punto 3 — Validación de datos                     15 puntos
+  Punto 4 — Nuevos campos en productos              15 puntos
+  Punto 5 — Nuevo rol: operador                     20 puntos
+  Punto 6 — Logout y refresh token                  15 puntos
+  Punto 7 — Documentación y pruebas                 10 puntos
+  ─────────────────────────────────────────────────────────────
+  TOTAL                                            105 puntos*
+
+  * La nota máxima es 100. Los 5 puntos adicionales del total actúan como
+    bono: si el estudiante comete errores menores en otros puntos, estos
+    puntos extras pueden compensarlos.
+
+--------------------------------------------------------------------------------
+USUARIOS DE PRUEBA (ya creados por el Seeder)
+--------------------------------------------------------------------------------
+
+  ROL ADMIN   : admin@api.com    / password
+  ROL USUARIO : usuario@api.com  / password
+
+  El usuario operador deberá ser creado en el Punto 5.
+
+--------------------------------------------------------------------------------
+ENTREGABLES
+--------------------------------------------------------------------------------
+
+  1. Proyecto Laravel completo (sin la carpeta vendor).
+  2. Colección de Postman exportada en formato JSON.
+  3. Archivo .env con la configuración de base de datos local.
+
+  Comprima todo en un archivo .zip con el nombre:
+    Apellido_Nombre_TallerAPI.zip
+
+--------------------------------------------------------------------------------
+NOTAS IMPORTANTES
+--------------------------------------------------------------------------------
+
+  - No se reciben trabajos con el proyecto base sin modificar.
+  - Cada punto se evalúa de forma independiente; un error en un punto no
+    impide la calificación de los demás.
+  - Se recomienda probar cada endpoint después de implementarlo antes de
+    continuar con el siguiente punto.
+  - Cualquier uso de inteligencia artificial debe ser declarado. El estudiante
+    debe ser capaz de explicar y defender cada línea de código entregada.
+
+================================================================================
+                         ¡Éxitos en el desarrollo!
+================================================================================
