@@ -5,16 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
 {
-    use HasApiTokens, HasFactory, Notifiable;
-
-    const ROLE_ADMIN = 'admin';
-    const ROLE_USUARIO = 'usuario';
-    const ROLE_OPERADOR = 'operador';
+    use HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -52,15 +47,13 @@ class User extends Authenticatable implements JWTSubject
         'verification_code_expires_at' => 'datetime',
     ];
 
-    public function getJWTIdentifier(){
+    public function getJWTIdentifier()
+    {
         return $this->getKey();
     }
 
-    public function getJWTCustomClaims(){
+    public function getJWTCustomClaims()
+    {
         return ['role' => $this->role];
-    }
-
-    public function isAdmin(): bool{
-        return $this->role === self::ROLE_ADMIN;
     }
 }

@@ -31,7 +31,7 @@ class ApiProductosTest extends TestCase
     public function test_login_sends_a_six_digit_verification_code_by_email()
     {
         Mail::fake();
-        $user = $this->createUser(User::ROLE_ADMIN, 'admin@test.com');
+        $user = $this->createUser('admin', 'admin@test.com');
         $sentCode = null;
 
         $response = $this->postJson('/api/login', [
@@ -64,7 +64,7 @@ class ApiProductosTest extends TestCase
     public function test_login_with_invalid_credentials_does_not_send_a_code()
     {
         Mail::fake();
-        $user = $this->createUser(User::ROLE_ADMIN, 'admin-invalid@test.com');
+        $user = $this->createUser('admin', 'admin-invalid@test.com');
 
         $this->postJson('/api/login', [
             'email' => $user->email,
@@ -84,7 +84,7 @@ class ApiProductosTest extends TestCase
     public function test_verify_code_returns_token_and_invalidates_the_code()
     {
         Mail::fake();
-        $user = $this->createUser(User::ROLE_ADMIN, 'verify@test.com');
+        $user = $this->createUser('admin', 'verify@test.com');
         $sentCode = null;
 
         $this->postJson('/api/login', [
@@ -108,7 +108,7 @@ class ApiProductosTest extends TestCase
                 'message' => 'Codigo verificado correctamente',
                 'user' => [
                     'email' => $user->email,
-                    'role' => User::ROLE_ADMIN,
+                    'role' => 'admin',
                 ],
             ])
             ->assertJsonStructure([
@@ -134,7 +134,7 @@ class ApiProductosTest extends TestCase
 
     public function test_verify_code_rejects_expired_codes()
     {
-        $user = $this->createUser(User::ROLE_ADMIN, 'expired@test.com');
+        $user = $this->createUser('admin', 'expired@test.com');
 
         $user->forceFill([
             'verification_code' => Hash::make('123456'),
@@ -157,7 +157,7 @@ class ApiProductosTest extends TestCase
 
     public function test_me_returns_authenticated_user()
     {
-        $user = $this->createUser(User::ROLE_USUARIO, 'usuario@test.com');
+        $user = $this->createUser('usuario', 'usuario@test.com');
 
         $response = $this->withHeaders($this->authHeaders($user))
             ->getJson('/api/me');
@@ -165,13 +165,13 @@ class ApiProductosTest extends TestCase
         $response->assertOk()
             ->assertJson([
                 'email' => $user->email,
-                'role' => User::ROLE_USUARIO,
+                'role' => 'usuario',
             ]);
     }
 
     public function test_usuario_can_read_productos_but_cannot_modify_them()
     {
-        $usuario = $this->createUser(User::ROLE_USUARIO, 'sololectura@test.com');
+        $usuario = $this->createUser('usuario', 'sololectura@test.com');
         $producto = Producto::create([
             'nombre' => 'Cafe',
             'precio' => 9.50,
@@ -209,7 +209,7 @@ class ApiProductosTest extends TestCase
     public function test_operador_can_store_and_update_but_cannot_destroy()
     {
         Mail::fake();
-        $operador = $this->createUser(User::ROLE_OPERADOR, 'operador@test.com');
+        $operador = $this->createUser('operador', 'operador@test.com');
         $headers = $this->authHeaders($operador);
 
         $storeResponse = $this->withHeaders($headers)->postJson('/api/productos', [
@@ -245,7 +245,7 @@ class ApiProductosTest extends TestCase
 
     public function test_admin_can_delete_productos()
     {
-        $admin = $this->createUser(User::ROLE_ADMIN, 'admin-delete@test.com');
+        $admin = $this->createUser('admin', 'admin-delete@test.com');
         $producto = Producto::create([
             'nombre' => 'Azucar',
             'precio' => 4.00,
@@ -267,7 +267,7 @@ class ApiProductosTest extends TestCase
 
     public function test_store_validation_returns_422_json()
     {
-        $operador = $this->createUser(User::ROLE_OPERADOR, 'operador-validation@test.com');
+        $operador = $this->createUser('operador', 'operador-validation@test.com');
 
         $this->withHeaders($this->authHeaders($operador))
             ->postJson('/api/productos', [
@@ -280,7 +280,7 @@ class ApiProductosTest extends TestCase
 
     public function test_update_validation_returns_422_json()
     {
-        $operador = $this->createUser(User::ROLE_OPERADOR, 'operador-update@test.com');
+        $operador = $this->createUser('operador', 'operador-update@test.com');
         $producto = Producto::create([
             'nombre' => 'Harina',
             'precio' => 3.50,
@@ -299,7 +299,7 @@ class ApiProductosTest extends TestCase
 
     public function test_logout_invalidates_the_current_token()
     {
-        $user = $this->createUser(User::ROLE_ADMIN, 'logout@test.com');
+        $user = $this->createUser('admin', 'logout@test.com');
         $headers = $this->authHeaders($user);
 
         $this->withHeaders($headers)
@@ -319,7 +319,7 @@ class ApiProductosTest extends TestCase
 
     public function test_refresh_token_returns_a_new_token()
     {
-        $user = $this->createUser(User::ROLE_ADMIN, 'refresh@test.com');
+        $user = $this->createUser('admin', 'refresh@test.com');
         $token = JWTAuth::fromUser($user);
 
         $response = $this->withHeaders([
@@ -334,7 +334,7 @@ class ApiProductosTest extends TestCase
                 'message' => 'Token renovado correctamente',
                 'user' => [
                     'email' => $user->email,
-                    'role' => User::ROLE_ADMIN,
+                    'role' => 'admin',
                 ],
             ]);
 
@@ -383,7 +383,7 @@ class ApiProductosTest extends TestCase
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->string('role', 20)->default(User::ROLE_USUARIO);
+            $table->string('role', 20)->default('usuario');
             $table->string('verification_code')->nullable();
             $table->timestamp('verification_code_expires_at')->nullable();
             $table->timestamp('email_verified_at')->nullable();
